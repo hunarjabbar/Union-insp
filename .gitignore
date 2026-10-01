@@ -1,0 +1,14 @@
+# FILE: .gitignore
+# STAGE: 1
+# UPDATED: 2026-10-01
+node_modules
+.next
+out
+build
+dist
+.env
+.env.local
+.env.production
+.tsbuildinfo
+keys/qr-private.pem
+keys/qr-public.pem

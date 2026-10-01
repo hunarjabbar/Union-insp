@@ -1,0 +1,6 @@
+{
+  "name": "Union Inspection",
+  "description": "ISO-compliant vehicle inspection platform for heavy trucks and tour buses in Sulaymaniyah, Kurdistan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

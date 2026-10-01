@@ -1,0 +1,609 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  STATION_MANAGER
+  LEAD_INSPECTOR
+  COMPLIANCE_AUDITOR
+  SYNDICATE_REPRESENTATIVE
+  INSPECTION_TECHNICIAN
+  CASHIER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum StationType {
+  BORDER_TERMINAL
+  CITY_CENTER_CHECKPOINT
+  MOBILE_UNIT
+}
+
+enum LaneStatus {
+  ACTIVE
+  MAINTENANCE
+  OFFLINE
+  CALIBRATION_REQUIRED
+}
+
+enum VehicleCategory {
+  HEAVY_FREIGHT
+  TOUR_BUS
+  LIGHT_COMMERCIAL
+  HAZMAT
+}
+
+enum InspectionStatus {
+  SCHEDULED
+  PAYMENT_PENDING
+  IN_PROGRESS
+  PASSED
+  CONDITIONAL_PASS
+  FAILED
+  REJECTED
+  RE_INSPECTION_REQUIRED
+  PENDING_COUNTERSIGN
+}
+
+enum DefectCategory {
+  TIRE_TREAD_DEPTH
+  TIRE_SIDEWALL
+  TIRE_PRESSURE
+  BRAKE_EFFICIENCY
+  BRAKE_IMBALANCE
+  BRAKE_STOPPING_POWER
+  HEADLIGHT_AIM
+  HEADLIGHT_INTENSITY
+  SIGNAL_INDICATOR
+  STRUCTURAL
+  OTHER
+}
+
+enum DefectType {
+  CRITICAL
+  MAJOR
+  MINOR
+  ADVISORY
+}
+
+enum PaymentProvider {
+  FASTPAY
+  ZAINCASH
+  FIB
+  NASSPAY
+  QICARD
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  EXPIRED
+}
+
+enum PrinterStatus {
+  ONLINE
+  OFFLINE
+  PAPER_OUT
+  ERROR
+  UNPAIRED
+}
+
+enum PrinterConnectionType {
+  WEBUSB
+  WEBSERIAL
+  NETWORK_TCP
+  BLUETOOTH
+}
+
+enum EquipmentStatus {
+  OPERATIONAL
+  CALIBRATION_DUE
+  OUT_OF_SERVICE
+  DECOMMISSIONED
+}
+
+enum NcrStatus {
+  OPEN
+  UNDER_REVIEW
+  INVESTIGATING
+  RESOLVED
+  CLOSED
+}
+
+enum FeeCollectionStatus {
+  UNPAID
+  COLLECTED
+  WAIVED
+}
+
+enum EquipmentType {
+  BRAKE_TESTER
+  HEADLIGHT_TESTER
+  EMISSION_ANALYZER
+  SIDE_SLIP_METER
+  OPACIMETER
+  AXLE_PLAY_DETECTOR
+  SOUND_LEVEL_METER
+  TREAD_DEPTH_READER
+  OBD_SCANNER
+}
+
+enum CalibrationStatus {
+  VALID
+  EXPIRED
+  GRACE_PERIOD
+  FAILED
+}
+
+enum ISOStandard {
+  ISO_17020
+  ISO_9001
+  ISO_14001
+  ISO_45001
+  ISO_27001
+  ISO_39001
+}
+
+enum NCRStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+}
+
+enum PaymentMethod {
+  CASH
+  DIGITAL_WALLET
+  BANK_TRANSFER
+  CREDIT_CARD
+}
+
+
+model User {
+  id            String      @id @default("cuid()")
+  email         String      @unique
+  passwordHash  String      @map("password_hash")
+  fullName      String      @map("full_name")
+  role          Role
+  status        UserStatus  @default(ACTIVE)
+  mfaEnabled    Boolean     @default(false) @map("mfa_enabled")
+  mfaSecret     String?     @map("mfa_secret")
+  employeeId    String      @unique @map("employee_id")
+  stationId     String?     @map("station_id")
+  lastLoginAt   DateTime?   @map("last_login_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  station       Station?    @relation(fields: [stationId], references: [id])
+  sessions      Session[]
+  auditLogs     AuditLog[]
+  overrides     Override[]
+  inspections   Inspection[]
+  inspectionsCountersigned Inspection[] @relation("InspectionCountersign")
+  ncrsRaised    NCR[]       @relation("NcrsRaised")
+  ncrsClosed    NCR[]       @relation("NcrsClosed")
+
+  @@map("users")
+}
+
+model Session {
+  id            String    @id @default("cuid()")
+  userId        String    @map("user_id")
+  token         String    @unique
+  userAgent     String?   @map("user_agent")
+  ipAddress     String?   @map("ip_address")
+  expiresAt     DateTime  @map("expires_at")
+  revokedAt     DateTime? @map("revoked_at")
+  revokedReason String?   @map("revoked_reason")
+  lastSeenAt    DateTime? @default(now()) @map("last_seen_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Station {
+  id         String      @id
+  name       String
+  nameAr     String      @map("name_ar")
+  nameKu     String      @map("name_ku")
+  type       StationType
+  address    String
+  latitude   Float       @map("latitude")
+  longitude  Float       @map("longitude")
+  isActive   Boolean     @default(true) @map("is_active")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  users           User[]
+  lanes           Lane[]
+  equipment       Equipment[]
+  printerConfigs  PrinterConfig[]
+  inspections     Inspection[]
+  dailyReports    DailyReport[]
+  ncrs            NCR[]
+  vehicles        Vehicle[]
+
+  @@map("stations")
+}
+
+model Lane {
+  id              String     @id @default("cuid()")
+  stationId       String     @map("station_id")
+  laneNumber      Int        @map("lane_number")
+  name            String
+  status          LaneStatus @default(ACTIVE)
+  lastCalibration DateTime?  @map("last_calibration")
+  nextCalibration DateTime?  @map("next_calibration")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  station      Station      @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  equipment    Equipment[]
+  inspections  Inspection[]
+  printerConfigs PrinterConfig[]
+
+  @@unique([stationId, laneNumber])
+  @@map("lanes")
+}
+
+model FleetOwner {
+  id          String    @id @default("cuid()")
+  companyName String    @map("company_name")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  vehicles    Vehicle[]
+
+  @@map("fleet_owners")
+}
+
+model Vehicle {
+  id             String          @id @default("cuid()")
+  vin            String?         @unique
+  plateNumber    String          @map("plate_number")
+  plateCountry   String          @map("plate_country")
+  category       VehicleCategory
+  fleetOwnerId   String?         @map("fleet_owner_id")
+  complianceScore Int            @default(100) @map("compliance_score")
+  make            String?
+  model           String?
+  year            Int?
+  grossWeightKg   Int?            @map("gross_weight_kg")
+  stationId       String?         @map("station_id")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  fleetOwner      FleetOwner?     @relation(fields: [fleetOwnerId], references: [id])
+  station         Station?        @relation(fields: [stationId], references: [id])
+  inspections    Inspection[]
+  tireChecks     TireInspection[]
+  brakeChecks    BrakeInspection[]
+  lightChecks    LightInspection[]
+
+  @@map("vehicles")
+}
+
+model Inspection {
+  id             String              @id @default("cuid()")
+  inspectionCode String              @unique @map("inspection_code")
+  vehicleId      String              @map("vehicle_id")
+  stationId      String              @map("station_id")
+  laneId         String              @map("lane_id")
+  inspectorId    String              @map("inspector_id")
+  status         InspectionStatus    @default(SCHEDULED)
+  overallResult  String?             @map("overall_result")
+  feeAmountIqd   Int                 @map("fee_amount_iqd")
+  paymentStatus  FeeCollectionStatus @default(UNPAID) @map("payment_status")
+  paymentMethod  String?             @map("payment_method")
+  qrCodeData     String?             @map("qr_code_data")
+  qrSignature    String?             @map("qr_signature")
+  qrExpiresAt    DateTime?           @map("qr_expires_at")
+  countersignedById String?          @map("countersigned_by_id")
+  countersignedAt DateTime?           @map("countersigned_at")
+  amendedCount   Int                 @default(0) @map("amended_count")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  vehicle     Vehicle           @relation(fields: [vehicleId], references: [id])
+  station     Station           @relation(fields: [stationId], references: [id])
+  lane        Lane              @relation(fields: [laneId], references: [id])
+  inspector         User              @relation(fields: [inspectorId], references: [id])
+  countersignedUser User?             @relation("InspectionCountersign", fields: [countersignedById], references: [id])
+  tireChecks  TireInspection[]
+  brakeChecks BrakeInspection[]
+  lightChecks LightInspection[]
+  defects     Defect[]
+  payments    Payment[]
+  receipts    Receipt[]
+  auditLogs   AuditLog[]
+  overrides   Override[]
+  ncrs        NCR[]
+
+  @@map("inspections")
+}
+
+model TireInspection {
+  id                String   @id @default("cuid()")
+  inspectionId      String   @map("inspection_id")
+  vehicleId         String   @map("vehicle_id")
+  treadDepthMm      Json?    @map("tread_depth_mm")
+  pressureKpa       Json?    @map("pressure_kpa")
+  sidewallCondition Json?    @map("sidewall_condition")
+  overallResult     String   @map("overall_result")
+  scannedAt         DateTime @default(now()) @map("scanned_at")
+
+  inspection        Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  vehicle           Vehicle    @relation(fields: [vehicleId], references: [id])
+
+  @@map("tire_inspections")
+}
+
+model BrakeInspection {
+  id                 String   @id @default("cuid()")
+  inspectionId       String   @map("inspection_id")
+  vehicleId          String   @map("vehicle_id")
+  axle1EfficiencyPct Float?   @map("axle1_efficiency_pct")
+  axle2EfficiencyPct Float?   @map("axle2_efficiency_pct")
+  axle3EfficiencyPct Float?   @map("axle3_efficiency_pct")
+  axle1ImbalancePct  Float?   @map("axle1_imbalance_pct")
+  axle2ImbalancePct  Float?   @map("axle2_imbalance_pct")
+  axle3ImbalancePct  Float?   @map("axle3_imbalance_pct")
+  overallResult      String   @map("overall_result")
+  testedAt           DateTime @default(now()) @map("tested_at")
+
+  inspection         Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  vehicle            Vehicle    @relation(fields: [vehicleId], references: [id])
+
+  @@map("brake_inspections")
+}
+
+model LightInspection {
+  id                 String   @id @default("cuid()")
+  inspectionId       String   @map("inspection_id")
+  vehicleId          String   @map("vehicle_id")
+  headlightAimLeft   String?  @map("headlight_aim_left")
+  headlightAimRight  String?  @map("headlight_aim_right")
+  luxLeft            Float?   @map("lux_left")
+  luxRight           Float?   @map("lux_right")
+  indicatorStatus    Json?    @map("indicator_status")
+  overallResult      String   @map("overall_result")
+  testedAt           DateTime @default(now()) @map("tested_at")
+
+  inspection         Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  vehicle            Vehicle    @relation(fields: [vehicleId], references: [id])
+
+  @@map("light_inspections")
+}
+
+model Defect {
+  id            String         @id @default("cuid()")
+  inspectionId  String         @map("inspection_id")
+  category      DefectCategory
+  type          DefectType
+  description   String
+  measuredValue String?        @map("measured_value")
+  requiredValue String?        @map("required_value")
+  location      String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  inspection    Inspection     @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@map("defects")
+}
+
+model Override {
+  id            String   @id @default("cuid()")
+  inspectionId  String   @map("inspection_id")
+  userId        String   @map("user_id")
+  parameter     String?
+  machineValue  String?  @map("machine_value")
+  overrideValue String?  @map("override_value")
+  justification String?
+  reason        String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  user          User       @relation(fields: [userId], references: [id])
+
+  @@map("overrides")
+}
+
+model Equipment {
+  id              String          @id @default("cuid()")
+  stationId       String          @map("station_id")
+  laneId          String?         @map("lane_id")
+  serialNumber    String          @unique @map("serial_number")
+  name            String
+  status          EquipmentStatus @default(OPERATIONAL)
+  calibrationDue  DateTime        @map("calibration_due")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  station         Station          @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  lane            Lane?            @relation(fields: [laneId], references: [id])
+  calibrationLogs CalibrationLog[]
+  ncrs            NCR[]
+
+  @@map("equipment")
+}
+
+model CalibrationLog {
+  id          String   @id @default("cuid()")
+  equipmentId String   @map("equipment_id")
+  calibratedAt DateTime @default(now()) @map("calibrated_at")
+  calibratedBy String   @map("calibrated_by")
+  certificateNo String  @map("certificate_no")
+  nextDue     DateTime @map("next_due")
+
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@map("calibration_logs")
+}
+
+model NCR {
+  id               String       @id @default("cuid()")
+  ncrNumber        String       @unique @map("ncr_number")
+  inspectionId     String?      @map("inspection_id")
+  stationId        String?      @map("station_id")
+  equipmentId      String?      @map("equipment_id")
+  isoStandard      ISOStandard? @map("iso_standard")
+  title            String?
+  severity         String?
+  createdBy        String?      @map("created_by")
+  assignedTo       String?      @map("assigned_to")
+  dueDate          DateTime?    @map("due_date")
+  correctiveAction String?      @map("corrective_action")
+  preventiveAction String?      @map("preventive_action")
+  raisedById       String       @map("raised_by_id")
+  closedById       String?      @map("closed_by_id")
+  description      String
+  status           NcrStatus    @default(OPEN)
+  createdAt        DateTime     @default(now()) @map("created_at")
+  resolvedAt       DateTime?    @map("resolved_at")
+  closedAt         DateTime?    @map("closed_at")
+
+  inspection       Inspection?  @relation(fields: [inspectionId], references: [id])
+  station          Station?     @relation(fields: [stationId], references: [id])
+  equipment        Equipment?   @relation(fields: [equipmentId], references: [id])
+  raisedBy         User         @relation("NcrsRaised", fields: [raisedById], references: [id])
+  closedBy         User?        @relation("NcrsClosed", fields: [closedById], references: [id])
+
+  @@map("ncrs")
+}
+
+model AuditLog {
+  sequence     Int      @id @default(autoincrement())
+  id           String   @unique @default("cuid()")
+  userId       String?  @map("user_id")
+  inspectionId String?  @map("inspection_id")
+  action       String
+  entityType   String   @map("entity_type")
+  entityId     String?  @map("entity_id")
+  oldValues    Json?    @map("old_values")
+  newValues    Json?    @map("new_values")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  hash         String   @unique
+  previousHash String?  @unique @map("previous_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user         User?       @relation(fields: [userId], references: [id])
+  inspection   Inspection? @relation(fields: [inspectionId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model DailyReport {
+  id                      String    @id @default("cuid()")
+  stationId               String    @map("station_id")
+  reportDate              DateTime  @map("report_date")
+  passedCount             Int       @default(0) @map("passed_count")
+  failedCount             Int       @default(0) @map("failed_count")
+  revenueIqd              Int       @default(0) @map("revenue_iqd")
+  payoutAmount            Int       @default(0) @map("payout_amount")
+  reconciled              Boolean   @default(false)
+  cashCollectedIqd        Int       @default(0) @map("cash_collected_iqd")
+  electronicCollectedIqd  Int       @default(0) @map("electronic_collected_iqd")
+  totalRevenueIqd         Int       @default(0) @map("total_revenue_iqd")
+  totalInspections        Int       @default(0) @map("total_inspections")
+  reconciledBy            String?   @map("reconciled_by")
+  reconciledAt            DateTime? @map("reconciled_at")
+  notes                   String?
+  createdAt               DateTime  @default(now()) @map("created_at")
+
+  station                 Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@unique([stationId, reportDate])
+  @@map("daily_reports")
+}
+
+model SyndicatePayout {
+  id           String   @id @default("cuid()")
+  amountIqd    Int      @map("amount_iqd")
+  recipientName String  @map("recipient_name")
+  payoutDate   DateTime @default(now()) @map("payout_date")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("syndicate_payouts")
+}
+
+model Payment {
+  id              String          @id @default("cuid()")
+  inspectionId    String          @map("inspection_id")
+  provider        PaymentProvider
+  amountIqd       Int             @map("amount_iqd")
+  status          PaymentStatus   @default(PENDING)
+  idempotencyKey  String          @unique @map("idempotency_key")
+  gatewayRef      String?         @map("gateway_ref")
+  gatewayQrData   String?         @map("gateway_qr_data")
+  gatewayDeepLink String?         @map("gateway_deep_link")
+  customerPhone   String?         @map("customer_phone")
+  failureReason   String?         @map("failure_reason")
+  refundAmountIqd Int?            @map("refund_amount_iqd")
+  refundedAt      DateTime?       @map("refunded_at")
+  completedAt     DateTime?       @map("completed_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  inspection      Inspection      @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  receipts        Receipt[]
+
+  @@map("payments")
+}
+
+model Receipt {
+  id             String   @id @default("cuid()")
+  inspectionId   String   @map("inspection_id")
+  paymentId      String?  @map("payment_id")
+  receiptNumber  String   @unique @map("receipt_number")
+  qrPayloadUrl   String   @map("qr_payload_url")
+  qrDataUrl      String?  @map("qr_data_url")
+  printedAt      DateTime? @map("printed_at")
+  printedBy      String?   @map("printed_by")
+  printerConfigId String?  @map("printer_config_id")
+  reprintCount   Int      @default(0) @map("reprint_count")
+  lastReprintedAt DateTime? @map("last_reprinted_at")
+  lastReprintedBy String?  @map("last_reprinted_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  inspection     Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  payment        Payment?   @relation(fields: [paymentId], references: [id])
+
+  @@map("receipts")
+}
+
+model PrinterConfig {
+  id             String                @id @default("cuid()")
+  stationId      String                @map("station_id")
+  laneId         String?               @map("lane_id")
+  name           String
+  connectionType PrinterConnectionType @map("connection_type")
+  paperWidthMm   Int                   @map("paper_width_mm")
+  status         PrinterStatus         @default(UNPAIRED)
+  isDefault      Boolean               @default(false) @map("is_default")
+  lastSeenAt     DateTime?             @map("last_seen_at")
+  lastError      String?               @map("last_error")
+  lastErrorAt    DateTime?             @map("last_error_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  station        Station               @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  lane           Lane?                 @relation(fields: [laneId], references: [id])
+
+  @@map("printer_configs")
+}

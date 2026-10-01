@@ -1,0 +1,5 @@
+# FILE: pnpm-workspace.yaml
+# STAGE: 1
+# UPDATED: 2026-10-01
+packages:
+  - '.'

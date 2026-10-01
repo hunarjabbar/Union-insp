@@ -1,0 +1,4 @@
+# FILE: keys/.gitignore
+# STAGE: 1
+# UPDATED: 2026-10-01
+*.pem
