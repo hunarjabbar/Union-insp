@@ -98,30 +98,88 @@ export async function getPaymentStatus(paymentId: string) {
   const user = await getAuthUser();
   if (!user) return { ok: false as const, error: 'Unauthorized' };
 
-  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: { inspection: true },
+  });
   if (!payment) return { ok: false as const, error: 'Not found' };
 
-  if (payment.status === 'PENDING' && payment.gatewayRef
-      && Date.now() - payment.createdAt.getTime() > 30_000) {
+  if ((payment.status === 'PENDING' || payment.status === 'PROCESSING') && payment.gatewayRef) {
     const adapter = getPaymentProvider(payment.provider);
     const latest = await adapter.checkStatus(payment.gatewayRef);
+
     if (latest !== payment.status) {
-      const updated = await prisma.payment.update({
-        where: { id: paymentId },
-        data: { status: latest,
-          completedAt: latest === 'COMPLETED' ? new Date() : undefined },
+      const result = await prisma.$transaction(async (tx) => {
+        const updatedPayment = await tx.payment.update({
+          where: { id: paymentId },
+          data: {
+            status: latest,
+            completedAt: latest === 'COMPLETED' ? new Date() : undefined,
+            failureReason: latest === 'FAILED' ? 'Gateway reported failure' : undefined,
+          },
+        });
+
+        if (latest === 'COMPLETED') {
+          await tx.inspection.update({
+            where: { id: payment.inspectionId },
+            data: {
+              paymentStatus: 'COLLECTED',
+              paymentMethod: payment.provider,
+            },
+          });
+
+          await writeAudit({
+            tx,
+            userId: user.userId,
+            inspectionId: payment.inspectionId,
+            action: 'PAYMENT_COMPLETED',
+            entityType: 'Payment',
+            entityId: paymentId,
+            newValues: {
+              provider: payment.provider,
+              amountIqd: payment.amountIqd,
+              gatewayRef: payment.gatewayRef,
+              source: 'polling',
+            },
+          });
+        } else if (latest === 'FAILED') {
+          await writeAudit({
+            tx,
+            userId: user.userId,
+            inspectionId: payment.inspectionId,
+            action: 'PAYMENT_FAILED',
+            entityType: 'Payment',
+            entityId: paymentId,
+            newValues: {
+              provider: payment.provider,
+              gatewayRef: payment.gatewayRef,
+              source: 'polling',
+            },
+          });
+        }
+
+        return updatedPayment;
       });
-      return { ok: true as const, data: {
-        status: updated.status, completedAt: updated.completedAt,
-        failureReason: updated.failureReason,
-      } };
+
+      return {
+        ok: true as const,
+        data: {
+          status: result.status,
+          completedAt: result.completedAt,
+          failureReason: result.failureReason,
+        },
+      };
     }
   }
 
-  return { ok: true as const, data: {
-    status: payment.status, completedAt: payment.completedAt,
-    failureReason: payment.failureReason,
-  } };
+  return {
+    ok: true as const,
+    data: {
+      status: payment.status,
+      completedAt: payment.completedAt,
+      failureReason: payment.failureReason,
+    },
+  };
 }
 
 export async function refundPayment(

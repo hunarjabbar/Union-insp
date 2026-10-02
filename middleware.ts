@@ -18,6 +18,9 @@ const PUBLIC_PATHS = [
   '/api/health',
   '/api/verify',
   '/api/payments/webhooks',
+  '/api/payments/fastpay',
+  '/api/payments/zaincash',
+  '/api/payments/fib',
 ];
 
 const ROUTE_PERMISSIONS: Record<string, string[]> = {

@@ -3,7 +3,9 @@
 // UPDATED: 2026-10-01
 import pino from 'pino';
 
-const logLevel = process.env.LOG_LEVEL || 'info';
+const validLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
+const rawLevel = process.env.LOG_LEVEL || 'info';
+const logLevel = validLevels.includes(rawLevel.toLowerCase()) ? rawLevel.toLowerCase() : 'info';
 const isDev = process.env.NODE_ENV !== 'production';
 
 export const logger = pino({
@@ -17,7 +19,6 @@ export const logger = pino({
       'cookie',
       'authorization',
       'mfaSecret',
-      'X-API-Key',
     ],
     censor: '[REDACTED]',
   },
