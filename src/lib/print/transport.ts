@@ -21,7 +21,7 @@ export class WebUSBTransport implements PrintTransport {
       return false;
     }
     try {
-      const WebUSBModule = await import('@point-of-sale/webusb-receipt-printer');
+      const WebUSBModule = await import(/* webpackIgnore: true */ '@point-of-sale/webusb-receipt-printer');
       const WebUSBClass = (WebUSBModule.default || WebUSBModule) as unknown as {
         new (): WebUSBPrinterInstance;
       };

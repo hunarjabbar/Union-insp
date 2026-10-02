@@ -430,8 +430,12 @@ model Equipment {
   laneId          String?         @map("lane_id")
   serialNumber    String          @unique @map("serial_number")
   name            String
+  type            String          @default("TIRE_SCANNER_3D")
   status          EquipmentStatus @default(OPERATIONAL)
   calibrationDue  DateTime        @map("calibration_due")
+  manufacturer    String?
+  model           String?
+  notes           String?
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
@@ -596,6 +600,11 @@ model PrinterConfig {
   paperWidthMm   Int                   @map("paper_width_mm")
   status         PrinterStatus         @default(UNPAIRED)
   isDefault      Boolean               @default(false) @map("is_default")
+  vendorId       String?               @map("vendor_id")
+  productId      String?               @map("product_id")
+  serialNumber   String?               @map("serial_number")
+  networkHost    String?               @map("network_host")
+  networkPort    Int?                  @map("network_port")
   lastSeenAt     DateTime?             @map("last_seen_at")
   lastError      String?               @map("last_error")
   lastErrorAt    DateTime?             @map("last_error_at")

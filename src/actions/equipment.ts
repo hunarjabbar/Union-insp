@@ -28,7 +28,11 @@ export async function createEquipment(raw: unknown): Promise<ActionResult<Equipm
         laneId: d.laneId,
         serialNumber: d.serialNumber,
         name: d.name,
+        type: d.type,
         calibrationDue: new Date(d.calibrationDue),
+        manufacturer: d.manufacturer,
+        model: d.model,
+        notes: d.notes,
       },
     });
     await writeAudit({ tx, userId: user.userId, action: 'EQUIPMENT_CREATED',

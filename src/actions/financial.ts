@@ -155,3 +155,42 @@ export async function generateSyndicateSummary(from: string, to: string) {
     })),
   } };
 }
+
+export async function getRevenueSeries(stationId?: string | null, days = 30) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+
+  const where: Record<string, unknown> = {
+    createdAt: { gte: cutoff },
+    paymentStatus: 'COLLECTED',
+  };
+  if (stationId && stationId !== 'ALL') where.stationId = stationId;
+
+  const inspections = await prisma.inspection.findMany({
+    where,
+    select: { createdAt: true, feeAmountIqd: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const map = new Map<string, number>();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().split('T')[0];
+    map.set(key, 0);
+  }
+
+  for (const ins of inspections) {
+    const key = new Date(ins.createdAt).toISOString().split('T')[0];
+    const cur = map.get(key) ?? 0;
+    map.set(key, cur + ins.feeAmountIqd);
+  }
+
+  const data = Array.from(map.entries()).map(([day, totalIqd]) => ({
+    day,
+    totalIqd,
+  }));
+
+  return { ok: true as const, data };
+}
+

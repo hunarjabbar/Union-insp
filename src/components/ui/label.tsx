@@ -1,8 +1,6 @@
 // FILE: src/components/ui/label.tsx
 // STAGE: 7
 // UPDATED: 2026-10-02
-'use client';
-
 import * as React from 'react';
 import * as LabelPrimitive from '@radix-ui/react-label';
 import { cva, type VariantProps } from 'class-variance-authority';

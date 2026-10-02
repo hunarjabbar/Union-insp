@@ -1,7 +1,6 @@
 // FILE: src/lib/rbac.ts
 // STAGE: 3
 // UPDATED: 2026-10-01
-import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { Role } from '@prisma/client';
 
@@ -100,6 +99,7 @@ const JWT_SECRET = process.env.JWT_SECRET || '8b8d4cf56a73c1d94f2953288f6be4e37f
 
 export async function getAuthUser(): Promise<AuthUser | null> {
   try {
+    const { cookies } = await import('next/headers');
     const cookieStore = cookies();
     const token = cookieStore.get('union_inspection_token')?.value;
     if (!token) return null;
