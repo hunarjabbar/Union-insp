@@ -7,9 +7,22 @@ import { getPaymentProvider } from '@/lib/payments';
 import { logger } from '@/lib/logger';
 import { writeAudit } from '@/lib/audit';
 
-export async function runReconciler() {
+export interface ReconcilerSummary {
+  status: 'SUCCESS' | 'PARTIAL' | 'ERROR';
+  refreshed: number;
+  expired: number;
+  reportsChecked: number;
+  variancesDetected: number;
+  message?: string;
+  timestamp: string;
+}
+
+export async function runReconciler(): Promise<ReconcilerSummary> {
   const log = logger.child({ worker: 'payment-reconciler' });
   log.info('Starting daily payment reconciliation worker...');
+
+  let refreshedCount = 0;
+  let variancesDetected = 0;
 
   try {
     // 1. Refresh stale PENDING payments (older than 10 mins, less than 24 hours)
@@ -57,6 +70,7 @@ export async function runReconciler() {
               });
             }
           });
+          refreshedCount++;
           log.info(`Updated payment ${payment.id} status to ${latest}`);
         }
       } catch (err: any) {
@@ -125,6 +139,7 @@ export async function runReconciler() {
         const variancePct = (variance / reportedRevenue) * 100;
 
         if (variancePct > 5) {
+          variancesDetected++;
           log.warn(
             `High financial variance detected at station ${report.stationId} on ${report.reportDate.toISOString().split('T')[0]}: reported ${reportedRevenue} IQD vs. actual ${actualRevenue} IQD (${variancePct.toFixed(2)}%)`
           );
@@ -161,7 +176,24 @@ export async function runReconciler() {
     }
 
     log.info('Daily reconciliation finished successfully.');
+    return {
+      status: 'SUCCESS',
+      refreshed: refreshedCount,
+      expired: expiredResult.count,
+      reportsChecked: reports.length,
+      variancesDetected,
+      timestamp: new Date().toISOString(),
+    };
   } catch (error: any) {
     log.error(`Reconciler process error: ${error.message}`);
+    return {
+      status: 'ERROR',
+      refreshed: 0,
+      expired: 0,
+      reportsChecked: 0,
+      variancesDetected: 0,
+      message: error.message,
+      timestamp: new Date().toISOString(),
+    };
   }
 }

@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Public paths: pass through
-  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/')) || pathname.endsWith('/verify')) {
     return NextResponse.next();
   }
 

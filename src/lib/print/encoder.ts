@@ -87,7 +87,7 @@ export function buildInspectionReceipt(params: BuildReceiptParams): Uint8Array {
   encoder
     .align('center')
     .line(`Issued: ${formatDateTime(issuedAt)}`)
-    .feed(3)
+    .newline(3)
     .cut();
 
   return encoder.encode();
