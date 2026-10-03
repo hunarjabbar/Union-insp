@@ -1,0 +1,78 @@
+name: CI Test & Quality Suite
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: union_inspection_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare Cryptographic Keys
+        run: pnpm prepare:keys
+
+      - name: Run Prisma Database Migrations
+        env:
+          DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/union_inspection_test?schema=public"
+        run: pnpm prisma migrate deploy
+
+      - name: Seed Database
+        env:
+          DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/union_inspection_test?schema=public"
+        run: pnpm prisma db seed
+
+      - name: ESLint Code Quality Check
+        run: pnpm lint
+
+      - name: TypeScript Static Typecheck
+        run: npx tsc --noEmit
+
+      - name: Run Unit & Integration Tests
+        env:
+          DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/union_inspection_test?schema=public"
+          JWT_SECRET: "8b8d4cf56a73c1d94f2953288f6be4e37f694e4da20188efac37bdc51b9e2810"
+        run: pnpm test
+
+      - name: Install Playwright Chromium Dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E Tests
+        env:
+          DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/union_inspection_test?schema=public"
+          JWT_SECRET: "8b8d4cf56a73c1d94f2953288f6be4e37f694e4da20188efac37bdc51b9e2810"
+        run: pnpm test:e2e

@@ -2,10 +2,10 @@
 // STAGE: 12
 // UPDATED: 2026-10-02
 
-import { describe, it, expect } from 'vitest';
+import { test, expect } from '@playwright/test';
 
-describe('FastPay QR Payment Flow E2E Mock', () => {
-  it('should display QR code for FastPay option, poll status, and succeed', async () => {
+test.describe('FastPay QR Payment Flow E2E Mock', () => {
+  test('should display QR code for FastPay option, poll status, and succeed', async () => {
     const provider = 'FASTPAY';
     const initialStatus = 'PENDING';
 

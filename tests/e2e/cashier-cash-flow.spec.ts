@@ -2,10 +2,10 @@
 // STAGE: 12
 // UPDATED: 2026-10-02
 
-import { describe, it, expect } from 'vitest';
+import { test, expect } from '@playwright/test';
 
-describe('Cashier Cash Flow E2E Mock', () => {
-  it('should select cash payment, record the payment, and issue receipt', async () => {
+test.describe('Cashier Cash Flow E2E Mock', () => {
+  test('should select cash payment, record the payment, and issue receipt', async () => {
     // Mock the cashier wizard flow sequence
     const paymentMethod = 'CASH';
     const amountIqd = 30000;

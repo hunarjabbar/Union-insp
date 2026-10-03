@@ -3,3 +3,10 @@
 # UPDATED: 2026-10-01
 packages:
   - '.'
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  argon2: true
+  esbuild: true
+  prisma: true
+  unrs-resolver: true

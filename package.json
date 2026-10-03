@@ -9,7 +9,15 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "worker:reconciler": "tsx scripts/run-reconciler.ts"
+    "test:e2e": "playwright test",
+    "db:reset": "tsx prisma/seed.ts",
+    "worker:reconciler": "tsx scripts/run-reconciler.ts",
+    "verify:chain": "tsx scripts/verify-chain.ts",
+    "flags:list": "tsx scripts/flags-list.ts",
+    "prepare:keys": "tsx scripts/gen-keys.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -51,6 +59,7 @@
     "zod": "3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "20.14.9",
     "@types/qrcode": "1.5.5",
     "@types/react": "18.3.3",
